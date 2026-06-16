@@ -11,6 +11,8 @@ you probably need to write or find some plugins for additional checks.
 
 i dont personally want to run the centralized service BUT ONE outside of github should be the first line of mitigation to keep additional direct calls to git to a minimum (scaling-wise).
 
+this by and large is for surface limited by scale kind of measure so the problem faced by a normal steamdeck user might be more apt to think twice with this kind of warning.
+
 
 PKGBuild Security Suite
 
