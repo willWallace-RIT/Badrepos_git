@@ -3,11 +3,13 @@
 
 ai slop Prototype service for checking whether a Git repository URL has been flagged.
 
-this kinda violate the principles arch AUR but the theory of how to check for shit at scale might be a good stsrting point for a set and forget it approach.
+this kinda violate the principles arch AUR but the theory of how to check for shit at scale might be a good stsrting point for a set and forget it approach and I made the license MIT instead of GPL3 for that reason.
 
 it ultimately puts you in the same position youn were already in \o/
 
 you probably need to write or find some plugins for additional checks.
+
+i dont personally want to run the centralized service BUT ONE outside of github should be the mitigation to maintain direct calls to git to a minimum.
 
 
 PKGBuild Security Suite
