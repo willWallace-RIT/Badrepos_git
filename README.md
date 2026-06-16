@@ -1,8 +1,6 @@
 # Git Malware API
 
 
-
-
 ai slop Prototype service for checking whether a Git repository URL has been flagged.
 
 this kinda violate the principles arch AUR but the theory of how to check for shit at scale might be a good stsrting point for a set and forget it approach.
@@ -12,299 +10,251 @@ it ultimately puts you in the same position youn were already in \o/
 you probably need to write or find some plugins for additional checks.
 
 
-## Run
+PKGBuild Security Suite
 
-```bash
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-```
+A lightweight supply-chain security framework for PKGBUILDs and Git-based package sources.
 
-## Query
+PKGBuild Security Suite consists of two components:
 
-```bash
-curl "http://localhost:8000/check?url=https://github.com/user/repo"
-```
+1. Reputation Server — a centralized service that aggregates known-malicious repositories, package sources, and threat intelligence.
+2. Client Scanner — a local PKGBUILD auditing tool that performs static analysis and queries the reputation server.
+
+The project is designed to provide a practical first line of defense against common package supply-chain attacks while minimizing external API requests and infrastructure requirements.
 
 ---
 
-Git Malware API
+Why This Project Exists
 
-A lightweight reputation service for Git repositories.
+Modern package ecosystems increasingly rely on source code fetched directly from Git repositories.
 
-Git Malware API is designed as a first line of defense for package managers, PKGBUILD maintainers, CI/CD pipelines, and automated build systems that consume code from public Git repositories.
+While this model offers flexibility and rapid distribution, it also introduces risks:
 
-The project's goal is not to detect every form of malware, compromise, or supply-chain attack. Instead, it provides a fast, centralized reputation check that allows clients to identify repositories that have already been reported, flagged, or associated with known malicious activity.
+- Repository compromise
+- Maintainer account takeover
+- Typosquatting
+- Malicious package updates
+- Malicious package adoption
+- Runtime download attacks
+- Obfuscated install scripts
 
-Motivation
+Recent incidents have demonstrated that even trusted package ecosystems can be abused when attackers gain control of package sources or maintainership.
 
-Many package build systems—including Arch Linux's PKGBUILD ecosystem—allow arbitrary Git repositories to be referenced as package sources.
+Comprehensive auditing of every repository and package source is often impractical.
 
-A package may appear legitimate while pointing to:
+This project focuses on identifying known risks quickly and cheaply.
 
-A repository that was later compromised
+---
 
-A repository that was replaced after account takeover
+Project Goals
 
-A repository known to distribute malware
+Fast Reputation Checks
 
-A typosquatted repository
+Allow clients to determine whether:
 
-A repository associated with phishing or credential theft
+- A Git repository has previously been reported as malicious
+- An AUR package has been associated with malicious activity
+- A source URL appears on known threat feeds
 
-A repository previously removed for policy violations
+using a single lightweight API request.
 
+Minimize External API Usage
 
-Performing comprehensive security analysis on every referenced repository is expensive and often impractical.
-
-Git Malware API aims to provide a low-cost reputation layer that answers a simple question:
-
-> "Has this repository already been identified as problematic by trusted sources?"
-
-
-
-Design Philosophy
-
-First Line of Defense
-
-This service should never be treated as a guarantee of safety.
-
-A repository passing a reputation check does not mean:
-
-The code is secure
-
-The code is malware-free
-
-The repository has not been compromised
-
-Future commits are trustworthy
-
-
-Instead, the service helps identify repositories that are already known to be suspicious.
-
-Minimize API Usage
-
-Large package repositories may process thousands of packages.
-
-Repeatedly querying GitHub, threat-intelligence providers, and malware databases for every package can quickly exhaust rate limits.
-
-This project centralizes collection and caching of threat intelligence so that clients only need a single lightweight query.
+Rather than every client independently querying GitHub and threat-intelligence providers, the server aggregates and caches information centrally.
 
 Benefits include:
 
-Reduced GitHub API usage
-
-Reduced threat-feed API usage
-
-Lower latency
-
-Consistent reputation results
-
-Easier auditing
-
+- Reduced API rate-limit consumption
+- Faster package validation
+- Shared threat intelligence
+- Consistent results across systems
 
 Defense in Depth
 
-Git Malware API is intended to complement—not replace—other security measures:
+The suite is not intended to replace:
 
-Package signing
+- Code review
+- Reproducible builds
+- Package signing
+- Sandboxed builds
+- Static analysis
+- Malware scanning
 
-Reproducible builds
+Instead, it provides an additional security layer that can identify known issues before package installation begins.
 
-Source verification
+---
 
-Commit signature validation
+Architecture
 
-Sandboxed builds
+Reputation Server
 
-Static analysis
+The server maintains a database of known indicators gathered from multiple sources.
 
-Malware scanning
+Potential data sources include:
 
-Human review
+- GitHub Security Advisories
+- URLHaus
+- AlienVault OTX
+- Community submissions
+- Security research feeds
+- Historical package incidents
 
+The server stores:
 
-Intended Workflow
+- Flagged repositories
+- Flagged package names
+- Flagged URLs
+- Flagged maintainers
+- Threat metadata
+- Confidence scores
 
-PKGBUILD
-    │
-    ▼
-Extract source URL
-    │
-    ▼
-Normalize repository
-    │
-    ▼
-Git Malware API
-    │
-    ├── Known malicious
-    │      ▼
-    │   Warn / Reject
-    │
-    └── Not found
-           ▼
-      Continue build
+Primary Endpoint
 
-Data Sources
+POST /pkgbuild/check
 
-The project is designed to aggregate information from multiple sources.
+The client submits:
 
-Potential sources include:
+- Package name
+- Extracted repository URLs
+- Extracted source URLs
 
-GitHub Security Advisories
+The server returns:
 
-GitHub abuse reports (where available)
+- Risk score
+- Findings
+- Threat intelligence references
 
-URLHaus
+---
 
-AlienVault OTX
+Client Scanner
 
-Community-maintained malware repositories
+The client performs local analysis before contacting the server.
 
-Security researcher submissions
+Repository Extraction
 
-Future self-hosted intelligence feeds
+Extract Git repositories from:
 
+source=()
 
-Not all sources carry equal confidence.
+entries within a PKGBUILD.
 
-Each record may contain:
+Source Validation
 
-Source provider
+Identify:
 
-Date observed
+- Plain HTTP downloads
+- Shortened URLs
+- Raw IP-based downloads
+- Nonstandard source locations
 
-Confidence score
+Reproducibility Checks
 
-Reason for flagging
+Detect:
 
-Supporting references
+- Mutable branches
+- Unpinned repositories
+- Missing commit references
 
+Checksum Validation
 
-Repository Normalization
+Warn when:
 
-Repositories should be normalized before storage and lookup.
+- Checksums are skipped
+- Verification is incomplete
+
+Dangerous Command Detection
+
+Identify patterns such as:
+
+- curl | bash
+- wget | sh
+- eval
+- base64 decoding
+- Runtime downloads
+
+Suspicious Install Targets
+
+Flag writes to locations including:
+
+- /etc/sudoers
+- ~/.ssh
+- /etc/systemd/system
+
+for additional review.
+
+---
+
+Plugin System
+
+Organizations and maintainers can define custom checks.
+
+Custom rules are placed in:
+
+plugins/
+
+Each rule exposes a simple interface:
+
+def run(pkgbuild):
+return findings
+
+This allows local policy enforcement without modifying the core scanner.
 
 Examples:
 
-https://github.com/User/Repo
-https://github.com/User/Repo.git
-git+https://github.com/User/Repo
+- Internal package restrictions
+- Approved repository lists
+- Additional compliance requirements
+- Organization-specific security checks
 
-become:
-
-github.com/user/repo
-
-This improves cache efficiency and avoids duplicate entries.
-
-API Response
-
-Example:
-
-{
-  "repo": "github.com/example/project",
-  "flagged": true,
-  "confidence": 0.91,
-  "source": [
-    "urlhaus",
-    "otx"
-  ],
-  "reason": "Known malware distribution"
-}
+---
 
 Threat Model
 
-This project helps mitigate:
+This project helps detect:
 
-Known malicious repositories
+- Known malicious repositories
+- Previously reported malicious packages
+- Known malicious URLs
+- Common PKGBUILD abuse patterns
+- Basic supply-chain attack indicators
 
-Previously reported malware repositories
+This project does not guarantee protection against:
 
-Repository typosquatting
+- Zero-day malware
+- Newly compromised repositories
+- Insider threats
+- Sophisticated obfuscation
+- Advanced persistence techniques
+- Local machine compromise
 
-Repositories reused after compromise
+A clean report should never be interpreted as proof of safety.
 
-Publicly documented abuse infrastructure
+---
 
+Typical Workflow
 
-This project does not fully mitigate:
+1. User downloads a PKGBUILD.
+2. Client scanner performs local analysis.
+3. Repository and source URLs are extracted.
+4. Client sends a single request to the reputation server.
+5. Risk score and findings are returned.
+6. User decides whether additional review is required.
 
-Zero-day malware
+This approach keeps package validation lightweight while still leveraging centralized threat intelligence.
 
-New malicious repositories
+---
 
-Insider attacks
+Long-Term Vision
 
-Build-time code generation attacks
+The long-term goal is a federated reputation network for package sources.
 
-Dependency confusion
+Future features may include:
 
-Malicious updates after lookup
+- Signed threat feeds
+- Transparency logs
+- Community moderation
+- Reputation scoring
+- Package-manager integrations
+- Local mirrors
+- Decentralized trust models
 
-Local system compromise
-
-
-Future Goals
-
-Short-Term
-
-GitHub advisory ingestion
-
-URLHaus integration
-
-OTX integration
-
-Repository normalization
-
-SQLite backend
-
-FastAPI service
-
-
-Medium-Term
-
-PostgreSQL support
-
-Docker deployment
-
-Signed feed exports
-
-Local mirror support
-
-Incremental updates
-
-
-Long-Term
-
-Federated reputation servers
-
-Community submissions
-
-Cryptographic transparency logs
-
-Decentralized trust scoring
-
-Package manager integrations
-
-
-Why Centralize?
-
-The internet contains too many attack vectors and too many constantly changing repositories for individual clients to efficiently track.
-
-By centralizing collection and caching of known-malicious repository intelligence, clients can:
-
-Reduce duplicate API traffic
-
-Improve lookup performance
-
-Share threat intelligence
-
-Reduce operational overhead
-
-
-while still retaining the ability to perform deeper validation when required.
-
-Disclaimer
-
-Git Malware API is a reputation service, not an antivirus product.
-
-A repository that is not listed should never be assumed safe. Reputation checks should be treated as one layer within a broader supply-chain security strategy.
+The objective is not to determine whether software is safe, but to provide actionable information about known risks before software is built or installed.
