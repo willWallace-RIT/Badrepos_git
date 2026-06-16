@@ -9,7 +9,7 @@ it ultimately puts you in the same position youn were already in \o/
 
 you probably need to write or find some plugins for additional checks.
 
-i dont personally want to run the centralized service BUT ONE outside of github should be the mitigation to maintain direct calls to git to a minimum.
+i dont personally want to run the centralized service BUT ONE outside of github should be the first line of mitigation to keep additional direct calls to git to a minimum (scaling-wise).
 
 
 PKGBuild Security Suite
